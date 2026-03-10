@@ -19,18 +19,20 @@
             color: #eee;
             min-height: 100vh;
         }
-        .container { max-width: 960px; margin: 0 auto; padding: 24px; }
+        x-container { display: block; max-width: 960px; margin: 0 auto; padding: 24px; }
         header { text-align: center; margin-bottom: 32px; }
         header h1 { font-size: 28px; font-weight: 600; color: #fff; margin-bottom: 8px; }
-        .subtitle { color: #888; font-size: 14px; }
-        .controls {
+        x-subtitle { display: block; color: #888; font-size: 14px; }
+        x-controls {
+            display: block;
             background: #252542;
             border-radius: 12px;
             padding: 24px;
             margin-bottom: 24px;
         }
-        .control-group { margin-bottom: 20px; }
-        .drop-zone {
+        x-control-group { display: block; margin-bottom: 20px; }
+        x-drop-zone {
+            display: block;
             border: 2px dashed #444;
             border-radius: 8px;
             padding: 32px;
@@ -39,12 +41,12 @@
             transition: all 0.2s ease;
             background: #1a1a2e;
         }
-        .drop-zone:hover { border-color: #667; background: #202038; }
-        .drop-zone.drag-over { border-color: #4a9eff; background: #1a2a4e; }
-        .drop-zone.has-file { border-color: #4a9; border-style: solid; }
-        .drop-zone-text { color: #888; font-size: 14px; }
-        .file-name { display: block; margin-top: 8px; color: #4a9; font-weight: 500; font-size: 14px; }
-        .button-group { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+        x-drop-zone:hover { border-color: #667; background: #202038; }
+        x-drop-zone.drag-over { border-color: #4a9eff; background: #1a2a4e; }
+        x-drop-zone.has-file { border-color: #4a9; border-style: solid; }
+        x-drop-zone-text { color: #888; font-size: 14px; }
+        x-file-name { display: block; margin-top: 8px; color: #4a9; font-weight: 500; font-size: 14px; }
+        x-button-group { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
         .btn {
             padding: 12px 24px;
             border: none;
@@ -61,18 +63,18 @@
         .btn-secondary { background: #333355; color: white; }
         .btn-secondary:hover:not(:disabled) { background: #444477; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
-        .text-inputs {
+        x-text-inputs {
             display: flex;
             gap: 16px;
             justify-content: center;
             margin-bottom: 16px;
         }
-        .text-input-group {
+        x-text-input-group {
             display: flex;
             align-items: center;
             gap: 8px;
         }
-        .text-input-group label {
+        x-text-input-group label {
             color: #aaa;
             font-size: 14px;
         }
@@ -89,7 +91,7 @@
             outline: none;
             border-color: #4a9eff;
         }
-        .char-timeline {
+        x-char-timeline {
             display: flex;
             position: relative;
             height: 60px;
@@ -100,15 +102,15 @@
             border-radius: 4px;
             overflow: visible;
         }
-        .char-segment {
+        x-char-segment {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
         }
-        .char-segment .chinese { font-size: 24px; color: white; }
-        .char-segment .pinyin { font-size: 12px; color: #aaa; margin-top: 2px; }
-        .boundary-marker {
+        x-char-segment x-chinese { font-size: 24px; color: white; }
+        x-char-segment x-pinyin { font-size: 12px; color: #aaa; margin-top: 2px; }
+        x-boundary-marker {
             position: absolute;
             top: 0;
             bottom: 0;
@@ -117,7 +119,7 @@
             cursor: ew-resize;
             transform: translateX(-50%);
         }
-        .boundary-marker:hover { background: #6ab0ff; }
+        x-boundary-marker:hover { background: #6ab0ff; }
         .toggle-label {
             display: flex;
             align-items: center;
@@ -129,15 +131,17 @@
             cursor: pointer;
         }
         .toggle-label input { cursor: pointer; }
-        .status {
+        x-status {
+            display: block;
             text-align: center;
             margin-top: 16px;
             min-height: 20px;
             font-size: 14px;
             color: #888;
         }
-        .status.error { color: #f44; }
-        .visualization {
+        x-status.error { color: #f44; }
+        x-visualization {
+            display: block;
             background: #252542;
             border-radius: 12px;
             padding: 24px;
@@ -150,28 +154,29 @@
             border-radius: 8px;
             display: block;
         }
-        .legend {
+        x-legend {
             display: flex;
             justify-content: center;
             gap: 24px;
             margin-top: 16px;
         }
-        .legend-item { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #aaa; }
-        .legend-color { width: 24px; height: 3px; border-radius: 2px; }
-        .legend-color.ref { background: #4a9eff; }
-        .legend-color.user { background: #ff6b6b; }
-        .score-section {
+        x-legend-item { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #aaa; }
+        x-legend-color { width: 24px; height: 3px; border-radius: 2px; }
+        x-legend-color.ref { background: #4a9eff; }
+        x-legend-color.user { background: #ff6b6b; }
+        x-score-section {
+            display: block;
             background: #252542;
             border-radius: 12px;
             padding: 24px;
             text-align: center;
         }
-        .score-section.hidden { display: none; }
-        .score-container { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-        .score-label { font-size: 14px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
-        .score-value { font-size: 48px; font-weight: 700; color: #4a9eff; }
-        .score-hint { font-size: 12px; color: #666; }
-        .loading-overlay {
+        x-score-section.hidden { display: none; }
+        x-score-container { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+        x-score-label { font-size: 14px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+        x-score-value { font-size: 48px; font-weight: 700; color: #4a9eff; }
+        x-score-hint { font-size: 12px; color: #666; }
+        x-loading-overlay {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(26, 26, 46, 0.95);
@@ -181,8 +186,9 @@
             flex-direction: column;
             z-index: 1000;
         }
-        .loading-overlay.hidden { display: none; }
-        .spinner {
+        x-loading-overlay.hidden { display: none; }
+        x-spinner {
+            display: block;
             width: 48px; height: 48px;
             border: 4px solid #333;
             border-top-color: #4a9eff;
@@ -190,72 +196,72 @@
             animation: spin 1s linear infinite;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
-        .loading-text { margin-top: 16px; color: #888; }
+        x-loading-text { display: block; margin-top: 16px; color: #888; }
     </style>
 </head>
 <body>
-    <div id="loading-overlay" class="loading-overlay">
-        <div class="spinner"></div>
-        <div class="loading-text">Loading SwiftF0 model...</div>
-    </div>
+    <x-loading-overlay id="loading-overlay">
+        <x-spinner></x-spinner>
+        <x-loading-text>Loading SwiftF0 model...</x-loading-text>
+    </x-loading-overlay>
 
-    <div class="container">
+    <x-container>
         <header>
             <h1>Mandarin Tone Shadower</h1>
-            <p class="subtitle">Compare your pitch contours with native speakers (SwiftF0 + WASM)<br>Sample sentence from <a href="https://tatoeba.org" style="color:#4a9eff;">Tatoeba.org</a> · <a href="https://github.com/allan-simon/mandarin-tone-shadower" style="color:#4a9eff;">More info on GitHub</a></p>
+            <x-subtitle>Compare your pitch contours with native speakers (SwiftF0 + WASM)<br>Sample sentence from <a href="https://tatoeba.org" style="color:#4a9eff;">Tatoeba.org</a> · <a href="https://github.com/allan-simon/mandarin-tone-shadower" style="color:#4a9eff;">More info on GitHub</a></x-subtitle>
         </header>
 
-        <section class="controls">
-            <div class="control-group">
-                <div id="drop-zone" class="drop-zone">
-                    <span class="drop-zone-text">Drop audio file here or click to select</span>
-                    <span id="file-name" class="file-name"></span>
+        <x-controls>
+            <x-control-group>
+                <x-drop-zone id="drop-zone">
+                    <x-drop-zone-text>Drop audio file here or click to select</x-drop-zone-text>
+                    <x-file-name id="file-name"></x-file-name>
                     <input type="file" id="file-input" accept="audio/*" style="display: none;">
-                </div>
-            </div>
+                </x-drop-zone>
+            </x-control-group>
 
-            <div class="text-inputs">
-                <div class="text-input-group">
+            <x-text-inputs>
+                <x-text-input-group>
                     <label for="chinese-input">Chinese:</label>
                     <input type="text" id="chinese-input" value="读高中的时候，每天早上六点起床。" class="text-field">
-                </div>
-                <div class="text-input-group">
+                </x-text-input-group>
+                <x-text-input-group>
                     <label for="pinyin-input">Pinyin:</label>
                     <input type="text" id="pinyin-input" value="Dú gāozhōng de shíhou, měitiān zǎoshang liù diǎn qǐchuáng." class="text-field">
-                </div>
-            </div>
+                </x-text-input-group>
+            </x-text-inputs>
 
-            <div class="button-group">
+            <x-button-group>
                 <button id="btn-play" class="btn btn-secondary" disabled>Play Reference</button>
                 <button id="btn-record" class="btn btn-primary" disabled>Record</button>
                 <button id="btn-play-recording" class="btn btn-secondary" disabled>Play Recording</button>
-            </div>
+            </x-button-group>
 
             <label class="toggle-label">
                 <input type="checkbox" id="shadow-toggle" checked>
                 <span>Play reference while recording (shadowing mode)</span>
             </label>
 
-            <div id="status" class="status"></div>
-        </section>
+            <x-status id="status"></x-status>
+        </x-controls>
 
-        <section class="visualization">
+        <x-visualization>
             <canvas id="pitch-canvas"></canvas>
-            <div id="char-timeline" class="char-timeline"></div>
-            <div class="legend">
-                <span class="legend-item"><span class="legend-color ref"></span>Reference</span>
-                <span class="legend-item"><span class="legend-color user"></span>Your recording</span>
-            </div>
-        </section>
+            <x-char-timeline id="char-timeline"></x-char-timeline>
+            <x-legend>
+                <x-legend-item><x-legend-color class="ref"></x-legend-color>Reference</x-legend-item>
+                <x-legend-item><x-legend-color class="user"></x-legend-color>Your recording</x-legend-item>
+            </x-legend>
+        </x-visualization>
 
-        <section id="score-section" class="score-section hidden">
-            <div class="score-container">
-                <span class="score-label">Alignment Score</span>
-                <span id="score-value" class="score-value">--</span>
-                <span class="score-hint">(lower is better)</span>
-            </div>
-        </section>
-    </div>
+        <x-score-section id="score-section" class="hidden">
+            <x-score-container>
+                <x-score-label>Alignment Score</x-score-label>
+                <x-score-value id="score-value">--</x-score-value>
+                <x-score-hint>(lower is better)</x-score-hint>
+            </x-score-container>
+        </x-score-section>
+    </x-container>
 
 <script>
 // ============== State ==============
@@ -833,18 +839,15 @@ function renderCharTimeline() {
         // Show characters without proper alignment
         const charWidth = 100 / numChars;
         state.chineseChars.forEach((char, i) => {
-            const segment = document.createElement('div');
-            segment.className = 'char-segment';
+            const segment = document.createElement('x-char-segment');
             segment.style.width = charWidth + '%';
 
-            const charDiv = document.createElement('div');
-            charDiv.className = 'chinese';
+            const charDiv = document.createElement('x-chinese');
             charDiv.textContent = char;
             segment.appendChild(charDiv);
 
             if (state.pinyinSyllables[i]) {
-                const pinyinDiv = document.createElement('div');
-                pinyinDiv.className = 'pinyin';
+                const pinyinDiv = document.createElement('x-pinyin');
                 pinyinDiv.textContent = state.pinyinSyllables[i];
                 segment.appendChild(pinyinDiv);
             }
@@ -853,7 +856,7 @@ function renderCharTimeline() {
         });
 
         // Add instruction
-        const hint = document.createElement('div');
+        const hint = document.createElement('x-hint');
         hint.style.cssText = 'position:absolute;bottom:2px;right:8px;font-size:11px;color:#666;';
         hint.textContent = 'Click "Even Split" to align';
         charTimeline.appendChild(hint);
@@ -863,7 +866,7 @@ function renderCharTimeline() {
     // Add spacer before first segment if start boundary > 0
     const firstBoundary = state.boundaries[0];
     if (firstBoundary > 0) {
-        const spacer = document.createElement('div');
+        const spacer = document.createElement('x-spacer');
         spacer.style.width = (firstBoundary / duration * 100) + '%';
         spacer.style.flexShrink = '0';
         charTimeline.appendChild(spacer);
@@ -875,20 +878,17 @@ function renderCharTimeline() {
         const endTime = state.boundaries[i + 1];
         const widthPercent = ((endTime - startTime) / duration) * 100;
 
-        const segment = document.createElement('div');
-        segment.className = 'char-segment';
+        const segment = document.createElement('x-char-segment');
         segment.style.width = widthPercent + '%';
         segment.style.cursor = 'pointer';
         segment.dataset.index = i;
 
-        const charDiv = document.createElement('div');
-        charDiv.className = 'chinese';
+        const charDiv = document.createElement('x-chinese');
         charDiv.textContent = state.chineseChars[i];
         segment.appendChild(charDiv);
 
         if (state.pinyinSyllables[i]) {
-            const pinyinDiv = document.createElement('div');
-            pinyinDiv.className = 'pinyin';
+            const pinyinDiv = document.createElement('x-pinyin');
             pinyinDiv.textContent = state.pinyinSyllables[i];
             segment.appendChild(pinyinDiv);
         }
@@ -904,7 +904,7 @@ function renderCharTimeline() {
     // Add spacer after last segment if end boundary < duration
     const lastBoundary = state.boundaries[state.boundaries.length - 1];
     if (lastBoundary < duration) {
-        const spacer = document.createElement('div');
+        const spacer = document.createElement('x-spacer');
         spacer.style.width = ((duration - lastBoundary) / duration * 100) + '%';
         spacer.style.flexShrink = '0';
         charTimeline.appendChild(spacer);
@@ -912,8 +912,7 @@ function renderCharTimeline() {
 
     // Add draggable boundary markers for ALL boundaries (including start and end)
     state.boundaries.forEach((time, i) => {
-        const marker = document.createElement('div');
-        marker.className = 'boundary-marker';
+        const marker = document.createElement('x-boundary-marker');
         marker.style.left = (time / duration * 100) + '%';
         marker.dataset.boundaryIndex = i;
 
