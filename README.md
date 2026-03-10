@@ -14,3 +14,7 @@ Practice Mandarin tones by shadowing native audio — visualizes pitch contours 
 Pitch extraction runs entirely in the browser using [SwiftF0](https://swift-f0.github.io/), an ONNX neural pitch estimator loaded via ONNX Runtime WASM. The extracted F0 values are converted to semitones relative to the speaker's median pitch, then aligned using Dynamic Time Warping (DTW) to produce a visual overlay and a similarity score.
 
 No server, no data leaves your browser.
+
+## Credits
+
+Sample sentence and audio from [Tatoeba.org](https://tatoeba.org).
