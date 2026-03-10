@@ -211,11 +211,11 @@
             <div class="text-inputs">
                 <div class="text-input-group">
                     <label for="chinese-input">Chinese:</label>
-                    <input type="text" id="chinese-input" placeholder="你好世界" class="text-field">
+                    <input type="text" id="chinese-input" value="读高中的时候，每天早上六点起床。" class="text-field">
                 </div>
                 <div class="text-input-group">
                     <label for="pinyin-input">Pinyin:</label>
-                    <input type="text" id="pinyin-input" placeholder="nǐ hǎo shì jiè" class="text-field">
+                    <input type="text" id="pinyin-input" value="Dú gāozhōng de shíhou, měitiān zǎoshang liù diǎn qǐchuáng." class="text-field">
                 </div>
             </div>
 
@@ -314,7 +314,8 @@ async function init() {
             { executionProviders: ['wasm'] }
         );
         loadingOverlay.classList.add('hidden');
-        showStatus('Ready. Load a reference audio file to begin.');
+        handleTextChange();
+        await loadAudioFromUrl('13612495-1281746.mp3');
     } catch (e) {
         showStatus('Error loading model: ' + e.message, true);
         loadingOverlay.querySelector('.loading-text').textContent = 'Error: ' + e.message;
@@ -405,6 +406,36 @@ async function loadAudioFile(file) {
         showStatus('Reference loaded: ' + resampled.duration.toFixed(2) + 's');
     } catch (e) {
         showStatus('Error loading audio: ' + e.message, true);
+    }
+}
+
+async function loadAudioFromUrl(url) {
+    showStatus('Loading sample audio...');
+    try {
+        const response = await fetch(url);
+        const arrayBuffer = await response.arrayBuffer();
+        const ac = getAudioContext();
+        const audioBuffer = await ac.decodeAudioData(arrayBuffer);
+
+        const resampled = resampleTo16kMono(audioBuffer);
+        state.refAudioBuffer = resampled;
+
+        showStatus('Extracting pitch...');
+        state.refPitch = await extractPitch(resampled.getChannelData(0));
+
+        fileNameSpan.textContent = url.split('/').pop();
+        dropZone.classList.add('has-file');
+        btnPlay.disabled = false;
+        btnRecord.disabled = false;
+
+        if (state.chineseChars.length > 0) {
+            handleEvenSplit();
+        }
+
+        drawContours();
+        showStatus('Sample loaded: ' + resampled.duration.toFixed(2) + 's — ready to practice!');
+    } catch (e) {
+        showStatus('Could not load sample: ' + e.message, true);
     }
 }
 
