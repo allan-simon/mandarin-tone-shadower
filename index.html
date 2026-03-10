@@ -1,0 +1,1201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mandarin Tone Shadower</title>
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.0/dist/ort.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+        }
+        .container { max-width: 960px; margin: 0 auto; padding: 24px; }
+        header { text-align: center; margin-bottom: 32px; }
+        header h1 { font-size: 28px; font-weight: 600; color: #fff; margin-bottom: 8px; }
+        .subtitle { color: #888; font-size: 14px; }
+        .controls {
+            background: #252542;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+        .control-group { margin-bottom: 20px; }
+        .drop-zone {
+            border: 2px dashed #444;
+            border-radius: 8px;
+            padding: 32px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: #1a1a2e;
+        }
+        .drop-zone:hover { border-color: #667; background: #202038; }
+        .drop-zone.drag-over { border-color: #4a9eff; background: #1a2a4e; }
+        .drop-zone.has-file { border-color: #4a9; border-style: solid; }
+        .drop-zone-text { color: #888; font-size: 14px; }
+        .file-name { display: block; margin-top: 8px; color: #4a9; font-weight: 500; font-size: 14px; }
+        .button-group { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn-primary { background: #e53935; color: white; }
+        .btn-primary:hover:not(:disabled) { background: #c62828; }
+        .btn-primary.recording { background: #ff5252; animation: pulse 1s infinite; }
+        .btn-secondary { background: #333355; color: white; }
+        .btn-secondary:hover:not(:disabled) { background: #444477; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+        .text-inputs {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            margin-bottom: 16px;
+        }
+        .text-input-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .text-input-group label {
+            color: #aaa;
+            font-size: 14px;
+        }
+        .text-field {
+            background: #2a2a3a;
+            border: 1px solid #444;
+            border-radius: 6px;
+            padding: 8px 12px;
+            color: white;
+            font-size: 18px;
+            width: 200px;
+        }
+        .text-field:focus {
+            outline: none;
+            border-color: #4a9eff;
+        }
+        .char-timeline {
+            display: flex;
+            position: relative;
+            height: 60px;
+            margin-top: 8px;
+            margin-left: 50px;  /* Match canvas left padding */
+            margin-right: 20px; /* Match canvas right padding */
+            background: #1a1a2a;
+            border-radius: 4px;
+            overflow: visible;
+        }
+        .char-segment {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .char-segment .chinese { font-size: 24px; color: white; }
+        .char-segment .pinyin { font-size: 12px; color: #aaa; margin-top: 2px; }
+        .boundary-marker {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: #4a9eff;
+            cursor: ew-resize;
+            transform: translateX(-50%);
+        }
+        .boundary-marker:hover { background: #6ab0ff; }
+        .toggle-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            justify-content: center;
+            margin-top: 12px;
+            font-size: 14px;
+            color: #aaa;
+            cursor: pointer;
+        }
+        .toggle-label input { cursor: pointer; }
+        .status {
+            text-align: center;
+            margin-top: 16px;
+            min-height: 20px;
+            font-size: 14px;
+            color: #888;
+        }
+        .status.error { color: #f44; }
+        .visualization {
+            background: #252542;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+        #pitch-canvas {
+            width: 100%;
+            height: 300px;
+            background: #1a1a2e;
+            border-radius: 8px;
+            display: block;
+        }
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            margin-top: 16px;
+        }
+        .legend-item { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #aaa; }
+        .legend-color { width: 24px; height: 3px; border-radius: 2px; }
+        .legend-color.ref { background: #4a9eff; }
+        .legend-color.user { background: #ff6b6b; }
+        .score-section {
+            background: #252542;
+            border-radius: 12px;
+            padding: 24px;
+            text-align: center;
+        }
+        .score-section.hidden { display: none; }
+        .score-container { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+        .score-label { font-size: 14px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+        .score-value { font-size: 48px; font-weight: 700; color: #4a9eff; }
+        .score-hint { font-size: 12px; color: #666; }
+        .loading-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(26, 26, 46, 0.95);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            z-index: 1000;
+        }
+        .loading-overlay.hidden { display: none; }
+        .spinner {
+            width: 48px; height: 48px;
+            border: 4px solid #333;
+            border-top-color: #4a9eff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-text { margin-top: 16px; color: #888; }
+    </style>
+</head>
+<body>
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="spinner"></div>
+        <div class="loading-text">Loading SwiftF0 model...</div>
+    </div>
+
+    <div class="container">
+        <header>
+            <h1>Mandarin Tone Shadower</h1>
+            <p class="subtitle">Compare your pitch contours with native speakers (SwiftF0 + WASM)</p>
+        </header>
+
+        <section class="controls">
+            <div class="control-group">
+                <div id="drop-zone" class="drop-zone">
+                    <span class="drop-zone-text">Drop audio file here or click to select</span>
+                    <span id="file-name" class="file-name"></span>
+                    <input type="file" id="file-input" accept="audio/*" style="display: none;">
+                </div>
+            </div>
+
+            <div class="text-inputs">
+                <div class="text-input-group">
+                    <label for="chinese-input">Chinese:</label>
+                    <input type="text" id="chinese-input" placeholder="你好世界" class="text-field">
+                </div>
+                <div class="text-input-group">
+                    <label for="pinyin-input">Pinyin:</label>
+                    <input type="text" id="pinyin-input" placeholder="nǐ hǎo shì jiè" class="text-field">
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button id="btn-play" class="btn btn-secondary" disabled>Play Reference</button>
+                <button id="btn-record" class="btn btn-primary" disabled>Record</button>
+                <button id="btn-play-recording" class="btn btn-secondary" disabled>Play Recording</button>
+            </div>
+
+            <label class="toggle-label">
+                <input type="checkbox" id="shadow-toggle" checked>
+                <span>Play reference while recording (shadowing mode)</span>
+            </label>
+
+            <div id="status" class="status"></div>
+        </section>
+
+        <section class="visualization">
+            <canvas id="pitch-canvas"></canvas>
+            <div id="char-timeline" class="char-timeline"></div>
+            <div class="legend">
+                <span class="legend-item"><span class="legend-color ref"></span>Reference</span>
+                <span class="legend-item"><span class="legend-color user"></span>Your recording</span>
+            </div>
+        </section>
+
+        <section id="score-section" class="score-section hidden">
+            <div class="score-container">
+                <span class="score-label">Alignment Score</span>
+                <span id="score-value" class="score-value">--</span>
+                <span class="score-hint">(lower is better)</span>
+            </div>
+        </section>
+    </div>
+
+<script>
+// ============== State ==============
+const state = {
+    refAudioBuffer: null,
+    refPitch: null,
+    userAudioBuffer: null,
+    userPitch: null,
+    alignedData: null,
+    isPlaying: false,
+    isRecording: false,
+    playbackStartTime: null,
+    animationFrameId: null,
+    ortSession: null,
+    // Text alignment
+    boundaries: [],  // Array of ALL boundaries including start and end: [start, b1, b2, ..., end]
+    chineseChars: [],
+    pinyinSyllables: []
+};
+
+// ============== Constants ==============
+const SAMPLE_RATE = 16000;  // SwiftF0 expects 16kHz
+const HOP_SIZE = 256;
+const CANVAS_PADDING = 50;
+const SEMITONE_RANGE = 12;
+const REF_COLOR = '#4a9eff';
+const USER_COLOR = '#ff6b6b';
+const GRID_COLOR = '#333355';
+const TEXT_COLOR = '#666';
+const PLAYHEAD_COLOR = '#ffcc00';
+
+// ============== DOM Elements ==============
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+const fileNameSpan = document.getElementById('file-name');
+const btnPlay = document.getElementById('btn-play');
+const btnRecord = document.getElementById('btn-record');
+const btnPlayRecording = document.getElementById('btn-play-recording');
+const chineseInput = document.getElementById('chinese-input');
+const pinyinInput = document.getElementById('pinyin-input');
+const charTimeline = document.getElementById('char-timeline');
+const statusDiv = document.getElementById('status');
+const canvas = document.getElementById('pitch-canvas');
+const ctx = canvas.getContext('2d');
+const scoreSection = document.getElementById('score-section');
+const scoreValue = document.getElementById('score-value');
+const loadingOverlay = document.getElementById('loading-overlay');
+
+let audioContext = null;
+
+// ============== Initialize ==============
+async function init() {
+    setupCanvas();
+    setupEventListeners();
+    drawEmptyCanvas();
+
+    // Load SwiftF0 ONNX model
+    try {
+        showStatus('Loading pitch detection model...');
+        state.ortSession = await ort.InferenceSession.create(
+            'https://swift-f0.github.io/model.onnx',
+            { executionProviders: ['wasm'] }
+        );
+        loadingOverlay.classList.add('hidden');
+        showStatus('Ready. Load a reference audio file to begin.');
+    } catch (e) {
+        showStatus('Error loading model: ' + e.message, true);
+        loadingOverlay.querySelector('.loading-text').textContent = 'Error: ' + e.message;
+    }
+}
+
+function getAudioContext() {
+    if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: SAMPLE_RATE });
+    }
+    return audioContext;
+}
+
+// ============== Canvas Setup ==============
+function setupCanvas() {
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+    canvas.logicalWidth = rect.width;
+    canvas.logicalHeight = rect.height;
+}
+
+// ============== Event Listeners ==============
+function setupEventListeners() {
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+    dropZone.addEventListener('dragleave', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); });
+    dropZone.addEventListener('drop', handleDrop);
+    fileInput.addEventListener('change', handleFileSelect);
+    btnPlay.addEventListener('click', handlePlayReference);
+    btnRecord.addEventListener('click', handleRecord);
+    btnPlayRecording.addEventListener('click', handlePlayRecording);
+    chineseInput.addEventListener('input', handleTextChange);
+    pinyinInput.addEventListener('input', handleTextChange);
+    window.addEventListener('resize', () => { setupCanvas(); redraw(); });
+}
+
+// ============== File Handling ==============
+async function handleDrop(e) {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    if (e.dataTransfer.files.length > 0) {
+        await loadAudioFile(e.dataTransfer.files[0]);
+    }
+}
+
+async function handleFileSelect(e) {
+    if (e.target.files.length > 0) {
+        await loadAudioFile(e.target.files[0]);
+    }
+}
+
+async function loadAudioFile(file) {
+    showStatus('Loading audio...');
+    try {
+        const arrayBuffer = await file.arrayBuffer();
+        const ac = getAudioContext();
+        const audioBuffer = await ac.decodeAudioData(arrayBuffer);
+
+        // Resample to 16kHz mono
+        const resampled = resampleTo16kMono(audioBuffer);
+        state.refAudioBuffer = resampled;
+
+        showStatus('Extracting pitch...');
+        state.refPitch = await extractPitch(resampled.getChannelData(0));
+
+        state.userPitch = null;
+        state.alignedData = null;
+
+        fileNameSpan.textContent = file.name;
+        dropZone.classList.add('has-file');
+        btnPlay.disabled = false;
+        btnRecord.disabled = false;
+        btnPlayRecording.disabled = true;
+        scoreSection.classList.add('hidden');
+
+        // Auto even split if text already entered, otherwise reset
+        if (state.chineseChars.length > 0) {
+            handleEvenSplit();
+        } else {
+            state.boundaries = [];
+            renderCharTimeline();
+        }
+
+        drawContours();
+        showStatus('Reference loaded: ' + resampled.duration.toFixed(2) + 's');
+    } catch (e) {
+        showStatus('Error loading audio: ' + e.message, true);
+    }
+}
+
+function resampleTo16kMono(audioBuffer) {
+    const ac = getAudioContext();
+    const numSamples = Math.ceil(audioBuffer.duration * SAMPLE_RATE);
+    const offlineCtx = new OfflineAudioContext(1, numSamples, SAMPLE_RATE);
+    const source = offlineCtx.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(offlineCtx.destination);
+    source.start();
+
+    // Return a promise-like but we need sync... let's do it differently
+    // Actually we'll just do simple resampling
+    const inputData = audioBuffer.getChannelData(0);
+    const inputSR = audioBuffer.sampleRate;
+    const outputLength = Math.ceil(inputData.length * SAMPLE_RATE / inputSR);
+    const outputData = new Float32Array(outputLength);
+
+    for (let i = 0; i < outputLength; i++) {
+        const srcIdx = i * inputSR / SAMPLE_RATE;
+        const idx0 = Math.floor(srcIdx);
+        const idx1 = Math.min(idx0 + 1, inputData.length - 1);
+        const frac = srcIdx - idx0;
+        outputData[i] = inputData[idx0] * (1 - frac) + inputData[idx1] * frac;
+    }
+
+    const newBuffer = ac.createBuffer(1, outputLength, SAMPLE_RATE);
+    newBuffer.copyToChannel(outputData, 0);
+    return newBuffer;
+}
+
+// ============== Pitch Extraction (SwiftF0) ==============
+async function extractPitch(audioData) {
+    if (!state.ortSession) throw new Error('Model not loaded');
+
+    const inputTensor = new ort.Tensor('float32', audioData, [1, audioData.length]);
+    const results = await state.ortSession.run({ input_audio: inputTensor });
+
+    const pitchHz = results.pitch_hz.data;
+    const confidence = results.confidence.data;
+
+    // Generate timestamps
+    const times = [];
+    const semitones = [];
+    const validPitches = [];
+
+    for (let i = 0; i < pitchHz.length; i++) {
+        times.push((i * HOP_SIZE + 127.5) / SAMPLE_RATE);
+        if (confidence[i] > 0.5 && pitchHz[i] > 50) {
+            validPitches.push(pitchHz[i]);
+        }
+    }
+
+    // Calculate median for semitone conversion
+    const median = validPitches.length > 0 ?
+        validPitches.sort((a,b) => a-b)[Math.floor(validPitches.length/2)] : 100;
+
+    for (let i = 0; i < pitchHz.length; i++) {
+        if (confidence[i] > 0.5 && pitchHz[i] > 50) {
+            semitones.push(12 * Math.log2(pitchHz[i] / median));
+        } else {
+            semitones.push(null);
+        }
+    }
+
+    return { times, semitones, duration: audioData.length / SAMPLE_RATE, median };
+}
+
+// ============== Playback ==============
+async function handlePlayReference() {
+    if (state.isPlaying) {
+        stopPlayback();
+        btnPlay.textContent = 'Play Reference';
+    } else {
+        await playBuffer(state.refAudioBuffer);
+        btnPlay.textContent = 'Stop';
+        state.isPlaying = true;
+        startPlayheadAnimation(state.refPitch.duration);
+    }
+}
+
+async function handlePlayRecording() {
+    if (state.isPlaying) {
+        stopPlayback();
+        btnPlayRecording.textContent = 'Play Recording';
+    } else {
+        await playBuffer(state.userAudioBuffer);
+        btnPlayRecording.textContent = 'Stop';
+        state.isPlaying = true;
+        startPlayheadAnimation(state.userPitch.duration);
+    }
+}
+
+let currentSource = null;
+
+async function playBuffer(buffer) {
+    stopPlayback();
+    const ac = getAudioContext();
+    await ac.resume();
+    currentSource = ac.createBufferSource();
+    currentSource.buffer = buffer;
+    currentSource.connect(ac.destination);
+    currentSource.onended = () => {
+        state.isPlaying = false;
+        btnPlay.textContent = 'Play Reference';
+        btnPlayRecording.textContent = 'Play Recording';
+        stopPlayheadAnimation();
+    };
+    currentSource.start();
+}
+
+async function playSegment(startTime, endTime) {
+    if (!state.refAudioBuffer) return;
+    stopPlayback();
+    const ac = getAudioContext();
+    await ac.resume();
+    currentSource = ac.createBufferSource();
+    currentSource.buffer = state.refAudioBuffer;
+    currentSource.connect(ac.destination);
+    currentSource.onended = () => {
+        state.isPlaying = false;
+    };
+    const duration = endTime - startTime;
+    currentSource.start(0, startTime, duration);
+    state.isPlaying = true;
+}
+
+function stopPlayback() {
+    if (currentSource) {
+        try { currentSource.stop(); } catch(e) {}
+        currentSource = null;
+    }
+    state.isPlaying = false;
+    stopPlayheadAnimation();
+}
+
+// ============== Recording ==============
+async function handleRecord() {
+    if (state.isRecording) return;
+    if (!state.refPitch) {
+        showStatus('Load a reference file first', true);
+        return;
+    }
+
+    state.isRecording = true;
+    btnRecord.classList.add('recording');
+    btnRecord.textContent = 'Recording...';
+    btnRecord.disabled = true;
+    btnPlay.disabled = true;
+
+    const duration = state.refPitch.duration;
+
+    try {
+        const shadowMode = document.getElementById('shadow-toggle').checked;
+
+        if (shadowMode) {
+            // Play reference for shadowing
+            await playBuffer(state.refAudioBuffer);
+            state.isPlaying = true;
+            startPlayheadAnimation(duration);
+        }
+
+        showStatus(shadowMode ? 'Recording... Speak along!' : 'Recording... Speak now!');
+
+        // Record
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const ac = getAudioContext();
+        await ac.resume();
+
+        const mediaRecorder = new MediaRecorder(stream);
+        const chunks = [];
+
+        mediaRecorder.ondataavailable = e => chunks.push(e.data);
+
+        const recordingPromise = new Promise(resolve => {
+            mediaRecorder.onstop = async () => {
+                stream.getTracks().forEach(t => t.stop());
+                const blob = new Blob(chunks, { type: 'audio/webm' });
+                const arrayBuffer = await blob.arrayBuffer();
+                const audioBuffer = await ac.decodeAudioData(arrayBuffer);
+                resolve(audioBuffer);
+            };
+        });
+
+        mediaRecorder.start();
+
+        // Stop after duration
+        await new Promise(r => setTimeout(r, (duration + 0.5) * 1000));
+        mediaRecorder.stop();
+
+        showStatus('Processing recording...');
+
+        const recordedBuffer = await recordingPromise;
+        const resampled = resampleTo16kMono(recordedBuffer);
+        state.userAudioBuffer = resampled;
+
+        showStatus('Extracting pitch...');
+        state.userPitch = await extractPitch(resampled.getChannelData(0));
+
+        showStatus('Aligning contours...');
+        state.alignedData = alignContours(state.refPitch, state.userPitch);
+
+        drawContours();
+
+        scoreValue.textContent = state.alignedData.distance.toFixed(2);
+        scoreSection.classList.remove('hidden');
+        btnPlayRecording.disabled = false;
+
+        showStatus('Done! Score: ' + state.alignedData.distance.toFixed(2));
+    } catch (e) {
+        showStatus('Error: ' + e.message, true);
+    } finally {
+        state.isRecording = false;
+        state.isPlaying = false;
+        btnRecord.classList.remove('recording');
+        btnRecord.textContent = 'Record';
+        btnRecord.disabled = false;
+        btnPlay.disabled = false;
+        btnPlay.textContent = 'Play Reference';
+        stopPlayback();
+        stopPlayheadAnimation();
+    }
+}
+
+// ============== Pinyin Splitting ==============
+function splitPinyin(input) {
+    // Pinyin initials (order matters - longer ones first)
+    const initials = 'zh|ch|sh|[bpmfdtnlgkhjqxrzcsyw]';
+    // Pinyin finals with tone marks (common vowels with diacritics)
+    const toneVowels = 'āáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜaeiouü';
+    // Punctuation to preserve
+    const punctuation = /^[,，.。!！?？;；:：、'"'""\-–—]+/;
+
+    const result = [];
+    let remaining = input.trim();
+
+    while (remaining.length > 0) {
+        // Skip spaces
+        const spaceMatch = remaining.match(/^\s+/);
+        if (spaceMatch) {
+            remaining = remaining.slice(spaceMatch[0].length);
+            continue;
+        }
+
+        // Check for punctuation - keep as separate token
+        const punctMatch = remaining.match(punctuation);
+        if (punctMatch) {
+            result.push(punctMatch[0]);
+            remaining = remaining.slice(punctMatch[0].length);
+            continue;
+        }
+
+        // Try to match a pinyin syllable
+        // Pattern: optional initial + final (vowel cluster + optional n/ng/r)
+        const syllableMatch = remaining.match(new RegExp(
+            `^(${initials})?([${toneVowels}]+(?:ng?|r)?)`, 'i'
+        ));
+
+        if (syllableMatch && syllableMatch[0]) {
+            result.push(syllableMatch[0].toLowerCase());
+            remaining = remaining.slice(syllableMatch[0].length);
+            continue;
+        }
+
+        // Handle standalone 'er' or nasal endings
+        const erMatch = remaining.match(/^(er|ng?)/i);
+        if (erMatch) {
+            result.push(erMatch[0].toLowerCase());
+            remaining = remaining.slice(erMatch[0].length);
+            continue;
+        }
+
+        // Skip unrecognized character
+        remaining = remaining.slice(1);
+    }
+
+    return result;
+}
+
+// ============== Text Alignment ==============
+function handleTextChange() {
+    const chinese = chineseInput.value.trim();
+    const pinyin = pinyinInput.value.trim();
+
+    state.chineseChars = [...chinese];  // Split into individual characters
+    state.pinyinSyllables = splitPinyin(pinyin);
+
+    const hasText = state.chineseChars.length > 0;
+    const hasAudio = state.refPitch !== null;
+
+    // Auto even split when we have both text and audio
+    if (hasText && hasAudio) {
+        handleEvenSplit();
+    } else {
+        renderCharTimeline();
+    }
+}
+
+function findUtteranceBounds() {
+    // Find first and last voiced frames in the pitch contour
+    if (!state.refPitch) return { start: 0, end: 1 };
+
+    const times = state.refPitch.times;
+    const semitones = state.refPitch.semitones;
+    let firstVoiced = 0;
+    let lastVoiced = state.refPitch.duration;
+
+    // Find first non-null pitch
+    for (let i = 0; i < semitones.length; i++) {
+        if (semitones[i] !== null) {
+            firstVoiced = times[i];
+            break;
+        }
+    }
+
+    // Find last non-null pitch
+    for (let i = semitones.length - 1; i >= 0; i--) {
+        if (semitones[i] !== null) {
+            lastVoiced = times[i];
+            break;
+        }
+    }
+
+    return { start: firstVoiced, end: lastVoiced };
+}
+
+function handleEvenSplit() {
+    if (!state.refPitch || state.chineseChars.length === 0) return;
+
+    const duration = state.refPitch.duration;
+    const numChars = state.chineseChars.length;
+    const bounds = findUtteranceBounds();
+
+    // Check if last char is punctuation - if so, it goes to the very end
+    const lastChar = state.chineseChars[numChars - 1];
+    const lastIsPunct = /^[,，.。!！?？;；:：、]$/.test(lastChar);
+
+    // Check if first char is punctuation (rare but possible)
+    const firstChar = state.chineseChars[0];
+    const firstIsPunct = /^[,，.。!！?？;；:：、]$/.test(firstChar);
+
+    const utteranceStart = firstIsPunct ? 0 : bounds.start;
+    const utteranceEnd = lastIsPunct ? duration : bounds.end;
+
+    // Count non-punctuation characters for even distribution
+    const speechChars = state.chineseChars.filter(c => !/^[,，.。!！?？;；:：、]$/.test(c)).length;
+
+    // Create boundaries array: [start, b1, b2, ..., end] (N+1 boundaries for N chars)
+    state.boundaries = [utteranceStart];
+    let currentTime = utteranceStart;
+    const speechDuration = utteranceEnd - utteranceStart;
+
+    for (let i = 0; i < numChars - 1; i++) {
+        const char = state.chineseChars[i];
+        const isPunct = /^[,，.。!！?？;；:：、]$/.test(char);
+
+        if (isPunct) {
+            // Punctuation gets minimal time
+            currentTime += 0.05;
+        } else {
+            // Regular characters get even share of speech duration
+            currentTime += speechDuration / speechChars;
+        }
+
+        state.boundaries.push(Math.min(currentTime, utteranceEnd - 0.01));
+    }
+
+    // Add end boundary
+    state.boundaries.push(utteranceEnd);
+
+    renderCharTimeline();
+    drawContours();
+    showStatus('Split evenly into ' + numChars + ' segments');
+}
+
+function renderCharTimeline() {
+    charTimeline.innerHTML = '';
+
+    if (state.chineseChars.length === 0 || !state.refPitch) {
+        return;
+    }
+
+    const duration = state.refPitch.duration;
+    const numChars = state.chineseChars.length;
+
+    // Need N+1 boundaries for N characters
+    if (state.boundaries.length !== numChars + 1) {
+        // Show characters without proper alignment
+        const charWidth = 100 / numChars;
+        state.chineseChars.forEach((char, i) => {
+            const segment = document.createElement('div');
+            segment.className = 'char-segment';
+            segment.style.width = charWidth + '%';
+
+            const charDiv = document.createElement('div');
+            charDiv.className = 'chinese';
+            charDiv.textContent = char;
+            segment.appendChild(charDiv);
+
+            if (state.pinyinSyllables[i]) {
+                const pinyinDiv = document.createElement('div');
+                pinyinDiv.className = 'pinyin';
+                pinyinDiv.textContent = state.pinyinSyllables[i];
+                segment.appendChild(pinyinDiv);
+            }
+
+            charTimeline.appendChild(segment);
+        });
+
+        // Add instruction
+        const hint = document.createElement('div');
+        hint.style.cssText = 'position:absolute;bottom:2px;right:8px;font-size:11px;color:#666;';
+        hint.textContent = 'Click "Even Split" to align';
+        charTimeline.appendChild(hint);
+        return;
+    }
+
+    // Add spacer before first segment if start boundary > 0
+    const firstBoundary = state.boundaries[0];
+    if (firstBoundary > 0) {
+        const spacer = document.createElement('div');
+        spacer.style.width = (firstBoundary / duration * 100) + '%';
+        spacer.style.flexShrink = '0';
+        charTimeline.appendChild(spacer);
+    }
+
+    // Create segments based on boundaries
+    for (let i = 0; i < numChars; i++) {
+        const startTime = state.boundaries[i];
+        const endTime = state.boundaries[i + 1];
+        const widthPercent = ((endTime - startTime) / duration) * 100;
+
+        const segment = document.createElement('div');
+        segment.className = 'char-segment';
+        segment.style.width = widthPercent + '%';
+        segment.style.cursor = 'pointer';
+        segment.dataset.index = i;
+
+        const charDiv = document.createElement('div');
+        charDiv.className = 'chinese';
+        charDiv.textContent = state.chineseChars[i];
+        segment.appendChild(charDiv);
+
+        if (state.pinyinSyllables[i]) {
+            const pinyinDiv = document.createElement('div');
+            pinyinDiv.className = 'pinyin';
+            pinyinDiv.textContent = state.pinyinSyllables[i];
+            segment.appendChild(pinyinDiv);
+        }
+
+        // Click to play this segment
+        segment.addEventListener('click', () => {
+            playSegment(startTime, endTime);
+        });
+
+        charTimeline.appendChild(segment);
+    }
+
+    // Add spacer after last segment if end boundary < duration
+    const lastBoundary = state.boundaries[state.boundaries.length - 1];
+    if (lastBoundary < duration) {
+        const spacer = document.createElement('div');
+        spacer.style.width = ((duration - lastBoundary) / duration * 100) + '%';
+        spacer.style.flexShrink = '0';
+        charTimeline.appendChild(spacer);
+    }
+
+    // Add draggable boundary markers for ALL boundaries (including start and end)
+    state.boundaries.forEach((time, i) => {
+        const marker = document.createElement('div');
+        marker.className = 'boundary-marker';
+        marker.style.left = (time / duration * 100) + '%';
+        marker.dataset.boundaryIndex = i;
+
+        // Drag handling
+        let dragging = false;
+        let startX = 0;
+        let startTime = 0;
+
+        marker.addEventListener('mousedown', (e) => {
+            dragging = true;
+            startX = e.clientX;
+            startTime = state.boundaries[i];
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!dragging) return;
+            const rect = charTimeline.getBoundingClientRect();
+            const deltaX = e.clientX - startX;
+            const deltaTime = (deltaX / rect.width) * duration;
+            let newTime = startTime + deltaTime;
+
+            // Clamp to valid range
+            const minTime = i > 0 ? state.boundaries[i - 1] + 0.05 : 0;
+            const maxTime = i < state.boundaries.length - 1 ? state.boundaries[i + 1] - 0.05 : duration;
+            newTime = Math.max(minTime, Math.min(maxTime, newTime));
+
+            state.boundaries[i] = newTime;
+            renderCharTimeline();
+            drawContours();  // Update boundary lines on canvas
+        });
+
+        document.addEventListener('mouseup', () => {
+            dragging = false;
+        });
+
+        charTimeline.appendChild(marker);
+    });
+}
+
+// ============== DTW Alignment ==============
+function alignContours(ref, user) {
+    const refSt = ref.semitones.map(v => v === null ? 0 : v);
+    const userSt = user.semitones.map(v => v === null ? 0 : v);
+
+    const n = refSt.length;
+    const m = userSt.length;
+
+    // DTW distance matrix
+    const dtw = Array(n + 1).fill(null).map(() => Array(m + 1).fill(Infinity));
+    dtw[0][0] = 0;
+
+    for (let i = 1; i <= n; i++) {
+        for (let j = 1; j <= m; j++) {
+            const cost = Math.abs(refSt[i-1] - userSt[j-1]);
+            dtw[i][j] = cost + Math.min(dtw[i-1][j], dtw[i][j-1], dtw[i-1][j-1]);
+        }
+    }
+
+    // Backtrack to get path
+    const path = [];
+    let i = n, j = m;
+    while (i > 0 && j > 0) {
+        path.unshift([i-1, j-1]);
+        const options = [
+            [i-1, j-1, dtw[i-1][j-1]],
+            [i-1, j, dtw[i-1][j]],
+            [i, j-1, dtw[i][j-1]]
+        ];
+        options.sort((a, b) => a[2] - b[2]);
+        [i, j] = options[0];
+    }
+
+    // Interpolate to reference time base
+    const times = ref.times.slice();
+    const refAligned = ref.semitones.slice();
+    const userAligned = new Array(times.length).fill(null);
+
+    // Map user values to reference times via path
+    for (const [ri, ui] of path) {
+        if (ri < userAligned.length) {
+            userAligned[ri] = user.semitones[ui];
+        }
+    }
+
+    const distance = dtw[n][m] / path.length;
+
+    return { times, refAligned, userAligned, distance };
+}
+
+// ============== Drawing ==============
+function showStatus(msg, isError = false) {
+    statusDiv.textContent = msg;
+    statusDiv.classList.toggle('error', isError);
+}
+
+function drawEmptyCanvas() {
+    const width = canvas.logicalWidth;
+    const height = canvas.logicalHeight;
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, width, height);
+    drawGrid(0, 1);
+}
+
+function drawContours() {
+    const width = canvas.logicalWidth;
+    const height = canvas.logicalHeight;
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, width, height);
+
+    if (!state.refPitch) {
+        drawEmptyCanvas();
+        return;
+    }
+
+    const duration = state.refPitch.duration;
+    drawGrid(0, duration);
+
+    if (state.alignedData) {
+        drawContour(state.alignedData.times, state.alignedData.refAligned, REF_COLOR, duration);
+        drawContour(state.alignedData.times, state.alignedData.userAligned, USER_COLOR, duration);
+    } else {
+        drawContour(state.refPitch.times, state.refPitch.semitones, REF_COLOR, duration);
+    }
+
+    // Draw boundary lines
+    drawBoundaryLines(duration);
+}
+
+function drawBoundaryLines(duration) {
+    if (state.boundaries.length === 0) return;
+
+    const width = canvas.logicalWidth;
+    const height = canvas.logicalHeight;
+    const pad = { left: 50, right: 20, top: 20, bottom: 30 };
+    const plotWidth = width - pad.left - pad.right;
+    const plotHeight = height - pad.top - pad.bottom;
+
+    ctx.strokeStyle = 'rgba(74, 158, 255, 0.5)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 5]);
+
+    // Draw all boundary lines
+    state.boundaries.forEach((time, i) => {
+        const x = pad.left + (time / duration) * plotWidth;
+        ctx.beginPath();
+        ctx.moveTo(x, pad.top);
+        ctx.lineTo(x, pad.top + plotHeight);
+        ctx.stroke();
+    });
+
+    ctx.setLineDash([]);
+
+    // Draw character labels centered in their segments
+    ctx.fillStyle = '#4a9eff';
+    ctx.font = '14px sans-serif';
+    ctx.textAlign = 'center';
+    for (let i = 0; i < state.chineseChars.length; i++) {
+        if (i + 1 < state.boundaries.length) {
+            const startTime = state.boundaries[i];
+            const endTime = state.boundaries[i + 1];
+            const centerTime = (startTime + endTime) / 2;
+            const x = pad.left + (centerTime / duration) * plotWidth;
+            ctx.fillText(state.chineseChars[i], x, pad.top - 5);
+        }
+    }
+}
+
+function redraw() {
+    if (state.refPitch) drawContours();
+    else drawEmptyCanvas();
+}
+
+function drawGrid(startTime, endTime) {
+    const width = canvas.logicalWidth;
+    const height = canvas.logicalHeight;
+
+    ctx.strokeStyle = GRID_COLOR;
+    ctx.lineWidth = 1;
+    ctx.fillStyle = TEXT_COLOR;
+    ctx.font = '12px sans-serif';
+
+    // Horizontal lines (semitones)
+    for (let st = -SEMITONE_RANGE; st <= SEMITONE_RANGE; st += 4) {
+        const y = semitoneToY(st);
+        ctx.beginPath();
+        ctx.moveTo(CANVAS_PADDING, y);
+        ctx.lineTo(width - CANVAS_PADDING, y);
+        ctx.stroke();
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(st.toString(), CANVAS_PADDING - 8, y);
+    }
+
+    // Vertical lines (time)
+    const duration = endTime - startTime;
+    const timeStep = duration > 3 ? 1 : (duration > 1 ? 0.5 : 0.25);
+
+    for (let t = 0; t <= duration; t += timeStep) {
+        const x = timeToX(t, 0, duration);
+        ctx.beginPath();
+        ctx.moveTo(x, CANVAS_PADDING);
+        ctx.lineTo(x, height - CANVAS_PADDING);
+        ctx.stroke();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText(t.toFixed(1) + 's', x, height - CANVAS_PADDING + 8);
+    }
+
+    // Labels
+    ctx.fillStyle = '#888';
+    ctx.font = '14px sans-serif';
+    ctx.save();
+    ctx.translate(15, height / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = 'center';
+    ctx.fillText('Semitones', 0, 0);
+    ctx.restore();
+    ctx.textAlign = 'center';
+    ctx.fillText('Time', width / 2, height - 10);
+
+    // Zero line
+    ctx.strokeStyle = '#555';
+    const zeroY = semitoneToY(0);
+    ctx.beginPath();
+    ctx.moveTo(CANVAS_PADDING, zeroY);
+    ctx.lineTo(width - CANVAS_PADDING, zeroY);
+    ctx.stroke();
+}
+
+function drawContour(times, semitones, color, duration) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+
+    let drawing = false;
+    for (let i = 0; i < times.length; i++) {
+        const st = semitones[i];
+        if (st === null || st === undefined || Number.isNaN(st)) {
+            drawing = false;
+            continue;
+        }
+        const x = timeToX(times[i], 0, duration);
+        const y = semitoneToY(st);
+        if (!drawing) {
+            ctx.moveTo(x, y);
+            drawing = true;
+        } else {
+            ctx.lineTo(x, y);
+        }
+    }
+    ctx.stroke();
+}
+
+function timeToX(time, startTime, endTime) {
+    const width = canvas.logicalWidth;
+    const plotWidth = width - CANVAS_PADDING * 2;
+    return CANVAS_PADDING + ((time - startTime) / (endTime - startTime)) * plotWidth;
+}
+
+function semitoneToY(semitone) {
+    const height = canvas.logicalHeight;
+    const plotHeight = height - CANVAS_PADDING * 2;
+    const normalized = (semitone + SEMITONE_RANGE) / (SEMITONE_RANGE * 2);
+    return height - CANVAS_PADDING - normalized * plotHeight;
+}
+
+// ============== Playhead Animation ==============
+function drawPlayhead(currentTime) {
+    if (!state.refPitch) return;
+    const duration = state.refPitch.duration;
+    const x = timeToX(currentTime, 0, duration);
+    const height = canvas.logicalHeight;
+
+    ctx.strokeStyle = PLAYHEAD_COLOR;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x, CANVAS_PADDING);
+    ctx.lineTo(x, height - CANVAS_PADDING);
+    ctx.stroke();
+
+    ctx.fillStyle = PLAYHEAD_COLOR;
+    ctx.beginPath();
+    ctx.moveTo(x, CANVAS_PADDING - 5);
+    ctx.lineTo(x - 6, CANVAS_PADDING - 12);
+    ctx.lineTo(x + 6, CANVAS_PADDING - 12);
+    ctx.closePath();
+    ctx.fill();
+}
+
+function startPlayheadAnimation(duration) {
+    state.playbackStartTime = performance.now();
+
+    function animate() {
+        const elapsed = (performance.now() - state.playbackStartTime) / 1000;
+        if (elapsed >= duration || !state.isPlaying) {
+            stopPlayheadAnimation();
+            return;
+        }
+        drawContours();
+        drawPlayhead(elapsed);
+        state.animationFrameId = requestAnimationFrame(animate);
+    }
+    animate();
+}
+
+function stopPlayheadAnimation() {
+    if (state.animationFrameId) {
+        cancelAnimationFrame(state.animationFrameId);
+        state.animationFrameId = null;
+    }
+    state.playbackStartTime = null;
+    drawContours();
+}
+
+// ============== Start ==============
+init();
+</script>
+</body>
+</html>
